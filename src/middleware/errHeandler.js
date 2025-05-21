@@ -1,19 +1,23 @@
-import path from "path"
-import fs from "fs"
+import winston from "winston"
 
-let errorHeandler = (error, req, res, next) => {
-    try {
-        if (error.status < 500) {
-            return res.status(error.status || 400).json({ message: error.message })
-        } else {
-            let manzil = path.join(process.cwd(),"logger.txt")
-            let errorText = ` ${error.message}\n` 
-            fs.appendFileSync(manzil, errorText) 
-        }
+const logger = winston.createLogger({
+  level: "error",
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.printf(({ timestamp, level, message }) => {
+      return `${timestamp} - ${level.toUpperCase()}: ${message}`
+    })
+  ),
+  transports: [new winston.transports.File({ filename: "error.log" })]
+})
 
-    } catch (error) {
-        console.log(error)  
-    }
+const errorHandler = (error, req, res, next) => {
+  if (error.status && error.status < 500) {
+    return res.status(error.status).json({ message: error.message })
+  } else {
+    logger.error(error.message || "Internal server error")
+    return res.status(500).json({ message: "Internal server error" })
+  }
 }
 
-export default errorHeandler
+export default errorHandler
